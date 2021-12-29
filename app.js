@@ -4,6 +4,8 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
+var axios = require('axios')
+
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
@@ -23,12 +25,12 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
 // catch 404 and forward to error handler
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
   next(createError(404));
 });
 
 // error handler
-app.use(function(err, req, res, next) {
+app.use(function (err, req, res, next) {
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
@@ -37,5 +39,24 @@ app.use(function(err, req, res, next) {
   res.status(err.status || 500);
   res.render('error');
 });
+
+// Call blocknative api for gas data
+const intervalInMs = 2000;
+setInterval(() => {
+  console.log(`Waiting for ${intervalInMs} ms`)
+
+  axios.get(
+    `https://blocknative-api.herokuapp.com/data`)
+
+    .then(response => {
+      var baseFeePerGas = response.data.baseFeePerGas
+      // console.log(typeof baseFeePerGas);
+      baseFeePerGas = Math.round(baseFeePerGas);
+      console.log(`baseFeePerGas ${baseFeePerGas}\n`)
+    })
+
+    .catch(error => console.log(
+      `Error fetching data\n ${error}`))
+}, intervalInMs)
 
 module.exports = app;
