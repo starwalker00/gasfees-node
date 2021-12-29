@@ -4,7 +4,12 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
+// api call
 var axios = require('axios')
+// isomorphic-git
+const git = require('isomorphic-git')
+const http = require('isomorphic-git/http/node')
+const fs = require('fs')
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -40,23 +45,50 @@ app.use(function (err, req, res, next) {
   res.render('error');
 });
 
+// git
+
+const gitLocalFolder = path.join(process.cwd(), 'ethgasfee-data')
+
+// Cleaning gitLocalFolder 
+if (!fs.existsSync(gitLocalFolder)) {
+  console.log('Folder to clone ethgasfee-data DOES NOT exist.');
+  fs.mkdirSync(gitLocalFolder);
+  console.log('Folder to clone ethgasfee-data Created Successfully.');
+}
+else {
+  console.log('Folder to clone ethgasfee-data DOES exist.');
+  console.log('Deleting it.');
+  fs.rmSync(gitLocalFolder, { recursive: true });
+}
+
+console.log('Cloning git repository.');
+var dir = gitLocalFolder;
+git.clone({ fs, http, dir, url: 'https://github.com/starwalker00/ethgasfee-data' }).then(console.log("Cloned"));
+
 // Call blocknative api for gas data
-const intervalInMs = 2000;
+const intervalInMs = 10000;
+console.log(`Waiting for ${intervalInMs} ms`)
 setInterval(() => {
-  console.log(`Waiting for ${intervalInMs} ms`)
 
   axios.get(
     `https://blocknative-api.herokuapp.com/data`)
-
     .then(response => {
       var baseFeePerGas = response.data.baseFeePerGas
-      // console.log(typeof baseFeePerGas);
       baseFeePerGas = Math.round(baseFeePerGas);
-      console.log(`baseFeePerGas ${baseFeePerGas}\n`)
+      let feeEntry = {
+        "timestamp": Date.now().toString(),
+        "baseFeePerGas": baseFeePerGas.toString(),
+        "readableDateUTC": new Date(Date.now()).toUTCString(),
+        "readableDateLocale": new Date(Date.now()).toLocaleString()
+      }
+      console.log("feeEntry:")
+      console.dir(feeEntry)
     })
-
     .catch(error => console.log(
       `Error fetching data\n ${error}`))
+    .finally(() => console.log(
+      `Waiting for ${intervalInMs} ms`)
+    )
 }, intervalInMs)
 
 module.exports = app;
