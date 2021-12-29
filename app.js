@@ -76,10 +76,10 @@ git.clone({
 
 // interval in ms between calls to blocknative api for gas data
 // const dataFetchIntervalInMs = 1 * 30 * 1000; // 30 seconds
-const dataFetchIntervalInMs = 1 * 60 * 1000;;
+const dataFetchIntervalInMs = 1 * 2 * 1000;;
 
 // interval in ms between pushes to git repo
-var gitPushIntervalInMs = 10 * 60 * 1000;
+var gitPushIntervalInMs = 1 * 10 * 1000;
 var feeEntries = [];
 
 // fetch data loop interval
@@ -109,9 +109,6 @@ setInterval(() => {
 // git loop interval
 setInterval(() => {
   gitAddAndCommitAndPush()
-    .then(console.log("Pushed."))
-    .catch(error => console.log(
-      `Error in gitAddAndCommitAndPush() \n ${error}`))
     .finally(() => console.log(
       `Git loop waiting for ${gitPushIntervalInMs} ms`)
     )
@@ -160,6 +157,7 @@ async function gitAddAndCommitAndPush() {
       throw new Error(pushResult);
     }
     // console.dir(pushResult)
+    return { "pushed": true };
   }).catch((error) => {
     console.log(`Error in gitAddAndCommitAndPush() \n ${error}`)
   });
