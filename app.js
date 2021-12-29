@@ -76,10 +76,10 @@ git.clone({
 
 // interval in ms between calls to blocknative api for gas data
 // const dataFetchIntervalInMs = 1 * 30 * 1000; // 30 seconds
-const dataFetchIntervalInMs = 1 * 5 * 1000;;
+const dataFetchIntervalInMs = 1 * 60 * 1000;;
 
 // interval in ms between pushes to git repo
-var gitPushIntervalInMs = 1 * 10 * 1000;
+var gitPushIntervalInMs = 10 * 60 * 1000;
 var feeEntries = [];
 
 // fetch data loop interval
@@ -133,7 +133,7 @@ async function gitAddAndCommitAndPush() {
   await git.add({ fs, dir: dir, filepath: 'UPDATES.md' })
 
   // git commit then push
-  let sha = await git.commit({
+  git.commit({
     fs,
     dir: dir,
     author: {
@@ -143,7 +143,7 @@ async function gitAddAndCommitAndPush() {
     message: 'add data'
   }).then((sha) => {
     console.log(`Committed.`)
-    console.log(`sha : ${sha}`)
+    // console.log(`sha : ${sha}`)
     return git.push({
       fs,
       http,
@@ -157,8 +157,9 @@ async function gitAddAndCommitAndPush() {
       console.log(`Pushed.`)
     } else {
       console.log(`Not pushed.`)
+      throw new Error(pushResult);
     }
-    console.dir(pushResult)
+    // console.dir(pushResult)
   }).catch((error) => {
     console.log(`Error in gitAddAndCommitAndPush() \n ${error}`)
   });
