@@ -77,9 +77,11 @@ git.clone({
 // interval in ms between calls to blocknative api for gas data
 // const dataFetchIntervalInMs = 1 * 30 * 1000; // 30 seconds
 const dataFetchIntervalInMs = 1 * 2 * 1000;;
+// const dataFetchIntervalInMs = 1 * 30 * 1000;;
 
 // interval in ms between pushes to git repo
 var gitPushIntervalInMs = 1 * 10 * 1000;
+// var gitPushIntervalInMs = 10 * 60 * 1000;
 var feeEntries = [];
 
 // fetch data loop interval
@@ -118,7 +120,7 @@ async function gitAddAndCommitAndPush() {
   feeEntries_toWrite = feeEntries;
   feeEntries = [];
   var currentWeek = getWeekNumber();
-  var filename = currentdate.getFullYear().toString().concat("-").concat(currentWeek);
+  var filename = currentdate.getFullYear().toString().concat("-").concat(currentWeek).concat('.csv');
   feeEntries_csv = await json2csv.json2csvAsync(feeEntries_toWrite, { prependHeader: false });
 
   // write data
