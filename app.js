@@ -4,12 +4,16 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
+// env
+require('dotenv').config()
 // api call
 var axios = require('axios')
 // isomorphic-git
 const git = require('isomorphic-git')
 const http = require('isomorphic-git/http/node')
 const fs = require('fs')
+// json-2-csv
+const json2csv = require('json-2-csv');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -46,7 +50,6 @@ app.use(function (err, req, res, next) {
 });
 
 // git
-
 const gitLocalFolder = path.join(process.cwd(), 'ethgasfee-data')
 
 // Cleaning gitLocalFolder 
@@ -63,32 +66,111 @@ else {
 
 console.log('Cloning git repository.');
 var dir = gitLocalFolder;
-git.clone({ fs, http, dir, url: 'https://github.com/starwalker00/ethgasfee-data' }).then(console.log("Cloned"));
+git.clone({
+  fs,
+  http,
+  dir,
+  url: 'https://github.com/starwalker00/ethgasfee-data'
+})
+  .then(console.log("Cloned."));
 
-// Call blocknative api for gas data
-const intervalInMs = 10000;
-console.log(`Waiting for ${intervalInMs} ms`)
+// interval in ms between calls to blocknative api for gas data
+// const dataFetchIntervalInMs = 1 * 30 * 1000; // 30 seconds
+const dataFetchIntervalInMs = 1 * 5 * 1000;;
+
+// interval in ms between pushes to git repo
+var gitPushIntervalInMs = 1 * 10 * 1000;
+var feeEntries = [];
+
+// fetch data loop interval
 setInterval(() => {
-
   axios.get(
     `https://blocknative-api.herokuapp.com/data`)
     .then(response => {
       var baseFeePerGas = response.data.baseFeePerGas
       baseFeePerGas = Math.round(baseFeePerGas);
-      let feeEntry = {
+      var feeEntry = {
         "timestamp": Date.now().toString(),
         "baseFeePerGas": baseFeePerGas.toString(),
         "readableDateUTC": new Date(Date.now()).toUTCString(),
         "readableDateLocale": new Date(Date.now()).toLocaleString()
       }
+      feeEntries.push(feeEntry);
       console.log("feeEntry:")
       console.dir(feeEntry)
     })
     .catch(error => console.log(
       `Error fetching data\n ${error}`))
     .finally(() => console.log(
-      `Waiting for ${intervalInMs} ms`)
+      `Fetch loop waiting for ${dataFetchIntervalInMs} ms`)
     )
-}, intervalInMs)
+}, dataFetchIntervalInMs)
+
+// git loop interval
+setInterval(() => {
+  gitAddAndCommitAndPush()
+    .then(console.log("Pushed."))
+    .catch(error => console.log(
+      `Error in gitAddAndCommitAndPush() \n ${error}`))
+    .finally(() => console.log(
+      `Git loop waiting for ${gitPushIntervalInMs} ms`)
+    )
+}, gitPushIntervalInMs)
+
+async function gitAddAndCommitAndPush() {
+  feeEntries_toWrite = feeEntries;
+  feeEntries = [];
+  var currentWeek = getWeekNumber();
+  var filename = currentdate.getFullYear().toString().concat("-").concat(currentWeek);
+  feeEntries_csv = await json2csv.json2csvAsync(feeEntries_toWrite, { prependHeader: false });
+
+  // write data
+  await fs.promises.appendFile(path.join(dir, 'data', filename), feeEntries_csv + '\n')
+  await git.add({ fs, dir: dir, filepath: path.join('data', filename) })
+
+  // write to UPDATES.md
+  await fs.promises.writeFile(path.join(dir, 'UPDATES.md'), new Date(Date.now()).toUTCString())
+  await git.add({ fs, dir: dir, filepath: 'UPDATES.md' })
+
+  // git commit then push
+  let sha = await git.commit({
+    fs,
+    dir: dir,
+    author: {
+      name: 'starwalker00',
+      email: 'aaronwalkerup@gmail.com',
+    },
+    message: 'add data'
+  }).then((sha) => {
+    console.log(`Committed.`)
+    console.log(`sha : ${sha}`)
+    return git.push({
+      fs,
+      http,
+      dir: dir,
+      url: 'https://github.com/starwalker00/ethgasfee-data.git',
+      ref: 'main',
+      onAuth: () => ({ username: process.env.GITHUB_TOKEN })
+    })
+  }).then((pushResult) => {
+    if (pushResult.ok) {
+      console.log(`Pushed.`)
+    } else {
+      console.log(`Not pushed.`)
+    }
+    console.dir(pushResult)
+  }).catch((error) => {
+    console.log(`Error in gitAddAndCommitAndPush() \n ${error}`)
+  });
+}
+
+function getWeekNumber() {
+  currentdate = new Date();
+  var oneJan = new Date(currentdate.getFullYear(), 0, 1);
+  var numberOfDays = Math.floor((currentdate - oneJan) / (24 * 60 * 60 * 1000));
+  var currentWeek = Math.ceil((currentdate.getDay() + 1 + numberOfDays) / 7);
+  // console.log(`The week number of the current date (${currentdate}) is ${currentWeek}.`);
+  return currentWeek
+}
 
 module.exports = app;
